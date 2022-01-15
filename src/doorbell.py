@@ -7,11 +7,11 @@ import math
 import sys
 import os
 
-DEBUG = False
+DEBUG = True
 FREQUENCY = 44100
 DURATION = 0.10
 MIN_ENERGY_RATIO = 100
-SIMILARITY_THRESHOLD = 0.64
+SIMILARITY_THRESHOLD = 0.8
 MIN_CONSECUTIVE_OK = 3
 TRIGGER_MIN_INTERVAL = timedelta(seconds=10)
 
@@ -45,7 +45,7 @@ class SoundDetector:
         self.filename = filename
         self.F = np.load(filename)
         self.n_ok = 0
-        self.detected = False
+        self.triggered = False
         self.next_trigger = None
         self.callback = callback
 
@@ -58,15 +58,18 @@ class SoundDetector:
             self.n_ok += 1
             if self.n_ok >= MIN_CONSECUTIVE_OK:
                 logging.info("+ {} {} {}".format(self.filename, self.n_ok, p))
-                if not self.detected:
-                    self.detected = True
-                    if self.callback is not None and (self.next_trigger is None or datetime.now() >= self.next_trigger):
-                        print("Callback")
-                        self.callback(self)
-        elif self.detected:
-            logging.info("- {}\n".format(self.filename))
-            self.detected = False
-            self.next_trigger = datetime.now() + TRIGGER_MIN_INTERVAL
+                if not self.triggered and self.callback is not None and (self.next_trigger is None or datetime.now() >= self.next_trigger):
+                    self.triggered = True
+                    logging.info("Callback {}".format(self.filename))
+                    self.callback(self)
+        else:
+            if self.n_ok > MIN_CONSECUTIVE_OK:
+                logging.info("- {}\n".format(self.filename))
+            self.n_ok = 0
+            if self.triggered:
+                self.triggered = False
+                self.next_trigger = datetime.now() + TRIGGER_MIN_INTERVAL
+                logging.info("Next trigger at {}".format(self.next_trigger))
 
 
 def record_sample():
