@@ -9,7 +9,7 @@ Once the sound is detected, an arbitrary action can be performed, such as callin
 The program can be run on ARM-based devices, such as Odroid C2, incurring a minimal CPU usage.
 
 
-## Installation
+## Installation and configuration
 
 Install dependencies:
 
@@ -22,6 +22,19 @@ On ARM-based devices, you may need to install NumPy from your Linux distribution
 ```
 sudo apt-get update
 sudo apt-get install python3-numpy
+```
+
+Then, in `src` directory create a `settings.py` file by copying `settings.py.tpl`:
+
+```
+cd src
+cp settings.py.tpl settings.py
+```
+
+You may need to explicitly set your sound card device id in `settings.py`. To get the id of available sound cards, run the following command:
+
+```
+python -m sounddevice
 ```
 
 ## Recording sample sounds
@@ -46,5 +59,8 @@ Start sound detector by running
 ```
 python doorbell.py
 ```
+
+If you want to call a webhook upon sound detection, set a webhook URL in `settings.py`.
+
 
 
