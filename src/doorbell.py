@@ -2,30 +2,24 @@ from datetime import datetime, timedelta
 import sounddevice as sd
 import numpy as np
 import requests
+import settings
 import logging
 import math
 import sys
 import os
 
-DEBUG = True
-FREQUENCY = 44100
-DURATION = 0.16
-MIN_ENERGY_RATIO = 100
-SIMILARITY_THRESHOLD = 0.7
-MIN_CONSECUTIVE_OK = 3
-TRIGGER_MIN_INTERVAL = timedelta(seconds=10)
 
-logging.getLogger().setLevel(logging.DEBUG if DEBUG else logging.WARNING)
+logging.getLogger().setLevel(logging.DEBUG if settings.DEBUG else logging.WARNING)
 stop = False
 
 
 def generate_clip_fft(duration=3, normalize=True):
     global stop
     stop = False
-    s = sd.Stream(FREQUENCY, channels=1)
+    s = sd.Stream(settings.FREQUENCY, channels=1)
     s.start()
     while not stop:
-        myrec = s.read(int(duration * FREQUENCY))[0]
+        myrec = s.read(int(duration * settings.FREQUENCY))[0]
         f = np.fft.rfft(myrec[:,0])
         F = np.abs(f)
         if normalize:
@@ -54,31 +48,31 @@ class SoundDetector:
         Compare normalized fft's F and G
         """
         p = np.dot(self.F, G)
-        if p > SIMILARITY_THRESHOLD:
+        if p > settings.SIMILARITY_THRESHOLD:
             self.n_ok += 1
-            if self.n_ok >= MIN_CONSECUTIVE_OK:
+            if self.n_ok >= settings.MIN_CONSECUTIVE_OK:
                 logging.info("+ {} {} {}".format(self.filename, self.n_ok, p))
                 if not self.triggered and self.callback is not None and (self.next_trigger is None or datetime.now() >= self.next_trigger):
                     self.triggered = True
                     logging.info("Callback {}".format(self.filename))
                     self.callback(self)
         else:
-            if self.n_ok > MIN_CONSECUTIVE_OK:
+            if self.n_ok > settings.MIN_CONSECUTIVE_OK:
                 logging.info("- {}\n".format(self.filename))
             self.n_ok = 0
             if self.triggered:
                 self.triggered = False
-                self.next_trigger = datetime.now() + TRIGGER_MIN_INTERVAL
+                self.next_trigger = datetime.now() + settings.TRIGGER_MIN_INTERVAL
                 logging.info("Next trigger at {}".format(self.next_trigger))
 
 
 def record_sample():
     global stop
     capturing = False
-    fft_length = int((DURATION * FREQUENCY) / 2) + 1
+    fft_length = int((settings.DURATION * settings.FREQUENCY) / 2) + 1
     F = np.zeros((fft_length,), dtype=np.float64)
     fold = None
-    for i, f in enumerate(generate_clip_fft(DURATION, False)):
+    for i, f in enumerate(generate_clip_fft(settings.DURATION, False)):
         if i < 5:
             continue
         if i == 5:
@@ -94,7 +88,7 @@ def record_sample():
                 F -= fold
             else:
                 F += f
-        if not capturing and np.dot(f, f) > energy * MIN_ENERGY_RATIO:
+        if not capturing and np.dot(f, f) > energy * settings.MIN_ENERGY_RATIO:
             print("Capturing")
             # Start capturing, but discard this clip
             capturing = True
@@ -109,8 +103,11 @@ def record_and_save_sample(filename):
     np.save(filename, f)
 
 
-def sample_callback(sd):
-    print("Called callback ", sd.filename)
+def webhook_callback(sd):
+    name, ext = os.path.split(sd.filename)
+    print("Sound detected:", name)
+    if settings.WEBHOOK_URL is not None:
+        requests.get(settings.WEBHOOK_URL.format(sound=name))
 
 
 def load_and_start_detecting():
@@ -121,8 +118,8 @@ def load_and_start_detecting():
     detectors = []
     for f in filenames:
         if f.endswith('.npy'):
-            detectors.append(SoundDetector(f, sample_callback))
-    for G in generate_clip_fft(DURATION):
+            detectors.append(SoundDetector(f, webhook_callback))
+    for G in generate_clip_fft(settings.DURATION):
         for sd in detectors:
             sd.compare(G)
 
