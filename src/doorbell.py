@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import sounddevice as sd
 import numpy as np
 import requests
@@ -104,7 +104,7 @@ def record_and_save_sample(filename):
 
 
 def webhook_callback(sd):
-    name, ext = os.path.split(sd.filename)
+    name, ext = os.path.splitext(sd.filename)
     print("Sound detected:", name)
     if settings.WEBHOOK_URL is not None:
         requests.get(settings.WEBHOOK_URL.format(sound=name))
