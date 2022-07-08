@@ -20,3 +20,6 @@ TRIGGER_MIN_INTERVAL = timedelta(seconds=10)
 
 WEBHOOK_URL = None
 # WEBHOOK_URL = 'https://maker.ifttt.com/trigger/MY_EVENT/with/key/MY_KEY={sound}'
+WATCHDOG_URL = None
+WATCHDOG_JSON_DATA = {
+}

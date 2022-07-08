@@ -1,3 +1,4 @@
+from watchdog import Watchdog
 from datetime import datetime
 import sounddevice as sd
 import numpy as np
@@ -131,5 +132,8 @@ if __name__ == '__main__':
         record_and_save_sample(name)
     else:
         print("Listening for sounds")
+        if settings.WATCHDOG_URL is not None:
+            w = Watchdog(settings.WATCHDOG_URL, settings.WATCHDOG_JSON_DATA)
+            w.start()
         load_and_start_detecting()
 
